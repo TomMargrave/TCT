@@ -1,0 +1,784 @@
+========================================================================================================
+===  Tidy report for :C:\Users\Tom Margrave\Documents\Github\TCT\Src\TCTool.au3
+========================================================================================================
+
+00001    #cs ----------------------------------------------------------------------------
+00002       
+00003       AutoIt Version: 3.3.14.5
+00004       Author:         Tom Margrave   Jumphopper@gmail.com
+00005       
+00006       Script Function:  This is use to replace copy and paste when app will not let
+00007       user to paste into it.  For example RDP and VNC.
+00008       
+00009    #ce ----------------------------------------------------------------------------
+00010    
+00011  +-#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+00012  |    	#AutoIt3Wrapper_Outfile=..\Exe\TCT.exe
+00013  |    	#AutoIt3Wrapper_Outfile_x64=..\Exe\TCT-64.exe
+00014  |    	#AutoIt3Wrapper_Compression=4
+00015  |    	#AutoIt3Wrapper_Compile_Both=y
+00016  |    	#AutoIt3Wrapper_UseX64=y
+00017  |    	#AutoIt3Wrapper_Res_Comment=This is to replace copy and paste when app will not let user to paste into it.  For example RDP and VNC.
+00018  |    	#AutoIt3Wrapper_Res_Description=Tom's Copy Tool
+00019  |    	#AutoIt3Wrapper_Res_Fileversion=2.96.0.15
+00020  |    	#AutoIt3Wrapper_Res_Fileversion_AutoIncrement=y
+00021  |    	#AutoIt3Wrapper_Res_ProductName=Tom's Copy Tool
+00022  |    	#AutoIt3Wrapper_Res_ProductVersion=2.96
+00023  |    	#AutoIt3Wrapper_Res_CompanyName=Tom Margrave
+00024  |    	#AutoIt3Wrapper_Run_After=copy "%out%"       "C:\Users\Tom Margrave\Google Drive\TCT\Exe"
+00025  |    	#AutoIt3Wrapper_Run_After=copy "%outx64%"  "C:\Users\Tom Margrave\Google Drive\TCT\Exe"
+00026  |    	#AutoIt3Wrapper_Run_Tidy=y
+00027  |    	#Tidy_Parameters=/sf /pr=1 /kv=10  /gd /ri /reel
+00028  |    	#AutoIt3Wrapper_Run_Au3Stripper=y
+00029  |    	#Au3Stripper_Parameters=/TraceLog
+00030  +-#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+00031    
+00032  +-#Region ; Includes
+00033  |    
+00034  |    	; *** Start added by AutoIt3Wrapper ***
+00035  |    	#include <StructureConstants.au3>
+00036  |    	; *** End added by AutoIt3Wrapper ***
+00037  |    
+00038  |    	#include <MsgBoxConstants.au3>
+00039  |    	#include <AutoItConstants.au3>
+00040  |    	;GUI
+00041  |    	#include <ButtonConstants.au3>
+00042  |    	#include <ComboConstants.au3>
+00043  |    	#include <EditConstants.au3>
+00044  |    	#include <GUIConstantsEx.au3>
+00045  |    	#include <WindowsConstants.au3>
+00046  |    
+00047  |    	; For list of windows.
+00048  |    	#include <Array.au3>
+00049  |    
+00050  |    	;Find app
+00051  |    	#include <WinAPI.au3>
+00052  |    	#include <Misc.au3>
+00053  +-#EndRegion ; Includes
+00054    
+00055  +-#Region ; Autoit options
+00056  |    	Opt("SendKeyDelay", 50)
+00057  |    	Opt("GUIResizeMode", $GUI_DOCKAUTO + $GUI_DOCKLEFT + $GUI_DOCKRIGHT + $GUI_DOCKTOP + $GUI_DOCKBOTTOM)
+00058  +-#EndRegion ; Autoit options
+00059    
+00060  +-#Region ;Global var
+00061  |    	Global $product
+00062  |    	Global $ver
+00063  |    
+00064  |    	;turn off
+00065  |    	Global $EnableESC = 0
+00066  |    	Global $mySpeed = 20
+00067  |    
+00068  |    	;  $SEND_DEFAULT (0) = Text contains special characters like + and ! to indicate SHIFT and ALT key-presses (default).
+00069  |    	;  $SEND_RAW (1) = keys are sent raw.
+00070  |    	Global $Raw_flag = 1
+00071  |    
+00072  |    	Global $myINI = @ScriptDir & "TCT.ini"
+00073  |    	Global $Suppress_CRLF = 0 ; 0 unchecked  1 checked
+00074  |    	Global $myHWND
+00075  |    
+00076  |    	;Gui
+00077  |    	Global $fMAIN  ;Main form
+00078  |    	Global $fMAIN_Left = 203
+00079  |    	Global $fMAIN_Top = 152
+00080  |    
+00081  |    	Global $Edit1, $Button_GO, $Button_ClearPaste, $Button_Clear, $Button_Close
+00082  |    	Global $Send2App  ;
+00083  |    	Global $hWin ;handle for main form
+00084  |    	Global $mi_ConvertCRLF
+00085  |    	Global $mi_Raw
+00086  |    
+00087  +-#EndRegion ;Global var
+00088    ;Set up hot key cancel
+00089    HotKeySet("{ESC}", "QuitApp") ;Press ESC key to quit
+00090    
+00091    INI_Load()
+00092    
+00093    _Main()
+00094    
+00095  +-Func _Main()
+00096  |  +-	#Region ### START Koda GUI section ### Form=C:\Users\Tom Margrave\Desktop\autoit\Forms\TCT.kxf
+00097  |  |    		$ver = FileGetVersion(@ScriptFullPath)
+00098  |  |    		$product = "Tom's Copy Tool " & $ver
+00099  |  |    
+00100  |  |    		;Menu
+00101  |  |    		$fMAIN = GUICreate($product, 352, 206, $fMAIN_Left, $fMAIN_Top, BitOR($GUI_SS_DEFAULT_GUI, $WS_SIZEBOX, $WS_THICKFRAME, $DS_MODALFRAME))
+00102  |  |    		$Menu_File = GUICtrlCreateMenu("&File")
+00103  |  |    		$mi_Exit = GUICtrlCreateMenuItem("&Exit", $Menu_File)
+00104  |  |    		$mi_Options = GUICtrlCreateMenu("&Options")
+00105  |  |    		$mi_AdjustSpeed = GUICtrlCreateMenuItem("Adjust &speed type", $mi_Options)
+00106  |  |    		$mi_Raw = GUICtrlCreateMenuItem("Raw Type", $mi_Options)
+00107  |  |  +-		If $Raw_flag == 1 Then
+00108  |  |  |    			GUICtrlSetState(-1, $GUI_CHECKED)
+00109  |  |  +-		Else
+00110  |  |  |    			GUICtrlSetState(-1, $GUI_UNCHECKED)
+00111  |  |  +-		EndIf
+00112  |  |    		$mi_ConvertCRLF = GUICtrlCreateMenuItem("Suppress CRLF", $mi_Options)
+00113  |  |  +-		If $Suppress_CRLF == 1 Then
+00114  |  |  |    			GUICtrlSetState(-1, $GUI_CHECKED)
+00115  |  |  +-		Else
+00116  |  |  |    			GUICtrlSetState(-1, $GUI_UNCHECKED)
+00117  |  |  +-		EndIf
+00118  |  |    		GUICtrlSetState($mi_ConvertCRLF, $GUI_DISABLE)
+00119  |  |    
+00120  |  |    		$mi_Save = GUICtrlCreateMenuItem("Save Settings", $mi_Options)
+00121  |  |    
+00122  |  |    		$mi_Help = GUICtrlCreateMenu("&Help")
+00123  |  |    		$mi_Help = GUICtrlCreateMenuItem("Help", $mi_Help)
+00124  |  |    		$mi_About = GUICtrlCreateMenuItem("About", $mi_Help)
+00125  |  |    
+00126  |  |    		;GUI
+00127  |  |    		$Edit1 = GUICtrlCreateEdit("Text", 8, 34, 329, 113, $ES_WANTRETURN)
+00128  |  |    		GUICtrlSetData(-1, "This tool will type whatever you put here.")
+00129  |  |    		GUICtrlSetResizing(-1, $GUI_DOCKAUTO + $GUI_DOCKLEFT + $GUI_DOCKRIGHT + $GUI_DOCKTOP + $GUI_DOCKBOTTOM)
+00130  |  |    		$Button_GO = GUICtrlCreateButton("Go", 8, 152, 81, 25)
+00131  |  |    		GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
+00132  |  |    		$Button_ClearPaste = GUICtrlCreateButton("Clear - Paste", 96, 152, 75, 25)
+00133  |  |    		GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
+00134  |  |    		$Button_Clear = GUICtrlCreateButton("Clear", 176, 152, 75, 25)
+00135  |  |    		GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
+00136  |  |    		$Button_Close = GUICtrlCreateButton("Close", 256, 152, 75, 25)
+00137  |  |    		GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
+00138  |  |    		$Send2App = GUICtrlCreateInput("Select App      ----->>>>", 8, 8, 300, 25, $ES_READONLY)
+00139  |  |    		GUICtrlSetResizing(-1, $GUI_DOCKLEFT + $GUI_DOCKRIGHT + $GUI_DOCKTOP + $GUI_DOCKHEIGHT)
+00140  |  |    		$SelectApp = GUICtrlCreateButton("...", 308, 8, 30, 25)
+00141  |  |    		GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKHEIGHT + $GUI_DOCKWIDTH + $GUI_DOCKTOP)
+00142  |  |    
+00143  |  |    		GUISetState(@SW_SHOW)
+00144  |  |    
+00145  |  +-	#EndRegion ### END Koda GUI section ###
+00146  |    
+00147  |    	disableControls(0)
+00148  |    
+00149  |    	$myHWND = WinGetHandle($product, "")
+00150  |    
+00151  |  +-	While 1
+00152  |  |    		$nMsg = GUIGetMsg()
+00153  |  |  +-		Switch $nMsg
+00154  |  |  |    
+00155  |  |  |  +-			Case $GUI_EVENT_CLOSE
+00156  |  |  |  |    				Global $EnableESC = 1
+00157  |  |  |  |    				$nothing = QuitApp
+00158  |  |  |  |    
+00159  |  |  |  +-			Case $Button_GO ;GO
+00160  |  |  |  |    				$myText = GUICtrlRead($Edit1)
+00161  |  |  |  |    				;GUISetState(@SW_HIDE)
+00162  |  |  |  |    				;doWait()
+00163  |  |  |  |    				doType($myText)
+00164  |  |  |  |    				;GUISetState(@SW_SHOW)
+00165  |  |  |  |    
+00166  |  |  |  +-			Case $Button_ClearPaste ;Clear and Paste
+00167  |  |  |  |    				$myText = ClipGet()
+00168  |  |  |  |    				GUICtrlSetData($Edit1, $myText)
+00169  |  |  |  |    
+00170  |  |  |  +-			Case $Button_Clear ;Clear
+00171  |  |  |  |    				GUICtrlSetData($Edit1, "")
+00172  |  |  |  |    
+00173  |  |  |  +-			Case $Button_Close ;Cloase
+00174  |  |  |  |    				Global $EnableESC = 1
+00175  |  |  |  |    				$nothing = QuitApp()
+00176  |  |  |  |    
+00177  |  |  |  +-			Case $mi_Exit ; menu Exit
+00178  |  |  |  |    				$nothing = QuitApp
+00179  |  |  |  |    
+00180  |  |  |  +-			Case $mi_AdjustSpeed ; Addjust speed
+00181  |  |  |  |    				AdjustSpeed()
+00182  |  |  |  |    
+00183  |  |  |  +-			Case $mi_Raw ; RAW Mode
+00184  |  |  |  |    				toggleRaw()
+00185  |  |  |  |    
+00186  |  |  |  +-			Case $mi_ConvertCRLF
+00187  |  |  |  |    				toggleCRLF()
+00188  |  |  |  |    
+00189  |  |  |  +-			Case $SelectApp
+00190  |  |  |  |    				$hWin = GetAPP()
+00191  |  |  |  |    
+00192  |  |  |  +-			Case $mi_About ;
+00193  |  |  |  |    				showAbout()
+00194  |  |  |  +-			Case $mi_Save
+00195  |  |  |  |    				INI_Write()
+00196  |  |  |  |    
+00197  |  |  |  +-			Case $mi_Help
+00198  |  |  |  |    				myHelp()
+00199  |  |  +-		EndSwitch
+00200  |  +-	WEnd
+00201  +-EndFunc   ;==>_Main
+00202    
+00203  +-Func AdjustSpeed()
+00204  |    	Local $aPos = WinGetPos($myHWND)
+00205  |    
+00206  |    	Local $answer = InputBox("Question", "What speed do you want to use?", $mySpeed, "", 0, 0, $aPos[0] + 40, $aPos[1] + 20, 0, $myHWND)
+00207  |    	$mySpeed = $answer
+00208  |    	Opt("SendKeyDelay", $mySpeed)
+00209  |    	setMainFocus()
+00210  +-EndFunc   ;==>AdjustSpeed
+00211    
+00212  +-Func disableControls($myBool)
+00213  |  +-	If $myBool <> 1 Then
+00214  |  |    		$myState = $GUI_DISABLE
+00215  |  +-	Else
+00216  |  |    		$myState = @SW_DISABLE
+00217  |  +-	EndIf
+00218  |    
+00219  |    	GUICtrlSetState($Edit1, $myState)
+00220  |    	GUICtrlSetState($Button_GO, $myState)
+00221  |    	GUICtrlSetState($Button_ClearPaste, $myState)
+00222  |    	GUICtrlSetState($Button_Clear, $myState)
+00223  |    	setMainFocus()
+00224  +-EndFunc   ;==>disableControls
+00225    
+00226  +-Func doType($myText)
+00227  |    	;find active Window
+00228  |    	$title = WinGetTitle($hWin)
+00229  |    
+00230  |    	;set send to active window
+00231  |    	SendKeepActive($title)
+00232  |    	; send keys
+00233  |    	;If BitAND(GUICtrlRead($mi_Raw), $GUI_UNCHECKED) Then
+00234  |  +-	If $Raw_flag == $SEND_DEFAULT Then
+00235  |  |    		;$Raw_flag = $SEND_DEFAULT
+00236  |  |  +-		If $Suppress_CRLF == 0 Then
+00237  |  |  |    			$myType = StringReplace($myText, @CRLF, "{ENTER}")
+00238  |  |  +-		Else
+00239  |  |  |    			$myType = StringReplace($myText, @CRLF, "")
+00240  |  |  +-		EndIf
+00241  |  +-	Else
+00242  |  |    		;$Raw_flag = $SEND_RAW
+00243  |  |    		$myType = StringReplace($myText, @CRLF, @CR)
+00244  |  +-	EndIf
+00245  |    	;$myText = StringStripWS($myText, 3)
+00246  |    	Send($myType, $Raw_flag)
+00247  |    	setMainFocus()
+00248  +-EndFunc   ;==>doType
+00249    
+00250  +-Func doWait()
+00251  |    	MsgBox($MB_APPLMODAL, "TCT Notice", "Position Cursor in " & @CRLF & "area to send text", 0, $myHWND)
+00252  +-EndFunc   ;==>doWait
+00253    
+00254  +-Func GetAPP()
+00255  |    	SplashTextOn("TCT Select App", " " & _
+00256  |  |       			"Hover the pointer over the application you want to send text to. " & _
+00257  |  |       			"If you need the text in a specific location, click the application " & _
+00258  |  |       			"to position the cursor." & @CRLF & @CRLF & _
+00259  |  |       			"Then press escape to select the application.", 300, 200, -1, -1, -1, "", 14, 500)
+00260  |    
+00261  |    	$EnableESC = 0
+00262  |    	Local $stPoint = DllStructCreate($tagPOINT), $aPos, $hControl, $hWin, $aLastPos[2] = [-1, -1], $sLastStr = '', $sStr
+00263  |    
+00264  |  +-	While Not _IsPressed('1B')
+00265  |  |    		$aPos = MouseGetPos()
+00266  |  |  +-		If $aPos[0] <> $aLastPos[0] Or $aPos[1] <> $aLastPos[1] Then
+00267  |  |  |    			DllStructSetData($stPoint, 1, $aPos[0])
+00268  |  |  |    			DllStructSetData($stPoint, 2, $aPos[1])
+00269  |  |  |    			$hControl = _WinAPI_WindowFromPoint($stPoint)
+00270  |  |  |    			$hWin = _WinAPI_GetAncestor($hControl, 2)
+00271  |  |  |    			$sStr = 'Select Window : ' & WinGetTitle($hWin)
+00272  |  |  |  +-			If $sLastStr <> $sStr Then
+00273  |  |  |  |    				ToolTip($sStr, 0, @DesktopHeight - 20)
+00274  |  |  |  |    				$sLastStr = $sStr
+00275  |  |  |  |    				GUICtrlSetData($Send2App, WinGetTitle($hWin))
+00276  |  |  |  +-			EndIf
+00277  |  |  |    			$aLastPos = $aPos
+00278  |  |  +-		EndIf
+00279  |  |    		Sleep(15)
+00280  |  +-	WEnd
+00281  |    
+00282  |    	ToolTip("", 0, @DesktopHeight - 20)
+00283  |    	$EnableESC = 1
+00284  |    	SplashOff()
+00285  |    
+00286  |    	disableControls(1)
+00287  |    	setMainFocus()
+00288  |    	Return $hWin
+00289  +-EndFunc   ;==>GetAPP
+00290    
+00291  +-Func INI_Load()
+00292  |    	;Detect if ini exist
+00293  |  +-	If FileExists($myINI) Then
+00294  |  |    		$mySpeed = IniRead($myINI, "Features", "Speed", 50)
+00295  |  |    		$Raw_flag = IniRead($myINI, "Features", "RAW", 1)
+00296  |  |    		$Suppress_CRLF = IniRead($myINI, "Features", "CRLF", 0)
+00297  |  +-	EndIf
+00298  |    
+00299  +-EndFunc   ;==>INI_Load
+00300    
+00301  +-Func INI_Write()
+00302  |    	IniWrite($myINI, "Features", "Speed", $mySpeed)
+00303  |    	IniWrite($myINI, "Features", "RAW", $Raw_flag)
+00304  |    	IniWrite($myINI, "Features", "CRLF", $Suppress_CRLF)
+00305  +-EndFunc   ;==>INI_Write
+00306    
+00307  +-Func myHelp()
+00308  |    
+00309  |    	$myHelp = _
+00310  |  |       			"This is TCT which stands for Tom’s Copy Tool.  For years I have had issues " & @CRLF & _
+00311  |  |       			"where  copy, paste and cut would not work from some tools to another.  One day " & @CRLF & _
+00312  |  |       			"I realized that AutoIT could make a tool to emulate keyboard typing.  This " & @CRLF & _
+00313  |  |       			"tool will send everything in the text window to the application selected." & @CRLF & _
+00314  |  |       			"" & @CRLF & _
+00315  |  |       			"There are two new features with this new version of TCT. The first feature will " & @CRLF & _
+00316  |  |       			"allow the speed at which the text is typed into the target to change by setting " & @CRLF & _
+00317  |  |       			"the millisecond delay between each key typed.  The second feature will allow " & @CRLF & _
+00318  |  |       			"the text to be switched from RAW to Extended text. " & @CRLF & _
+00319  |  |       			"" & @CRLF & _
+00320  |  |       			"If raw option is checked this tool will type text as seen.  If raw option is " & @CRLF & _
+00321  |  |       			"unchecked, then non alpha numeric characters are converted to keyboard functions." & @CRLF & _
+00322  |  |       			" " & @CRLF & _
+00323  |  |       			"'!'" & @CRLF & _
+00324  |  |       			"Adding an exclamation point before text tells TCT to send an ALT keystroke, " & @CRLF & _
+00325  |  |       			"therefore (""This is text!a"") would send the keys ""This is text"" and then " & @CRLF & _
+00326  |  |       			"press ""ALT + a""." & @CRLF & _
+00327  |  |       			"" & @CRLF & _
+00328  |  |       			"Some programs are very choosy about capital letters and ALT keys, i.e., ""!A"" " & @CRLF & _
+00329  |  |       			"is different from ""!a"". The first says ALT+SHIFT+A, the second is ALT+a. If " & @CRLF & _
+00330  |  |       			"in doubt, use lowercase!" & @CRLF & _
+00331  |  |       			"" & @CRLF & _
+00332  |  |       			"'+'" & @CRLF & _
+00333  |  |       			"Adding a plus symbol before text tells TCT to send a SHIFT keystroke; therefore, " & @CRLF & _
+00334  |  |       			"(""Hell+o"") would send the text ""HellO"". (""!+a"") would send ""ALT + " & @CRLF & _
+00335  |  |       			"SHIFT + a""." & @CRLF & _
+00336  |  |       			" " & @CRLF & _
+00337  |  |       			"'^'" & @CRLF & _
+00338  |  |       			"Adding a caret before text tells TCT to send a CONTROL keystroke; therefore, " & @CRLF & _
+00339  |  |       			"(""^!a"") would send ""CTRL+ALT+a""." & @CRLF & _
+00340  |  |       			"" & @CRLF & _
+00341  |  |       			"Some programs are very choosy about capital letters and CTRL keys, i.e., ""^A"" " & @CRLF & _
+00342  |  |       			"is different from ""^a"". The first says CTRL+SHIFT+A, the second is CTRL+a. " & @CRLF & _
+00343  |  |       			"If in doubt, use lowercase!" & @CRLF & _
+00344  |  |       			" " & @CRLF & _
+00345  |  |       			"'#'" & @CRLF & _
+00346  |  |       			"The hash sends a Windows keystroke; therefore, (""#r"") would send Win+r which " & @CRLF & _
+00347  |  |       			"launches the Run() dialog box." & @CRLF & _
+00348  |  |       			"" & @CRLF & _
+00349  |  |       			"Other options are listed below if Raw uncheck." & @CRLF & _
+00350  |  |       			"Send Command  	Resulting Keypress" & @CRLF & _
+00351  |  |       			"{!} 	        !" & @CRLF & _
+00352  |  |       			"{#}            #" & @CRLF & _
+00353  |  |       			"{+} 	        +" & @CRLF & _
+00354  |  |       			"{^} 	        ^" & @CRLF & _
+00355  |  |       			"{{} 	        {" & @CRLF & _
+00356  |  |       			"{}} 	        }" & @CRLF & _
+00357  |  |       			"{SPACE} 	    SPACE" & @CRLF & _
+00358  |  |       			"{ENTER} 	    ENTER key on the main keyboard" & @CRLF & _
+00359  |  |       			"{ALT} 	        ALT" & @CRLF & _
+00360  |  |       			"{BACKSPACE} or {BS}  BACKSPACE" & @CRLF & _
+00361  |  |       			"{DELETE} or {DEL}    DELETE" & @CRLF & _
+00362  |  |       			"{UP} 	        Up arrow" & @CRLF & _
+00363  |  |       			"{DOWN} 	    Down arrow" & @CRLF & _
+00364  |  |       			"{LEFT} 	    Left arrow" & @CRLF & _
+00365  |  |       			"{RIGHT} 	    Right arrow" & @CRLF & _
+00366  |  |       			"{HOME} 	HOME" & @CRLF & _
+00367  |  |       			"{END} 	END" & @CRLF & _
+00368  |  |       			"{ESCAPE} or {ESC} 	ESCAPE" & @CRLF & _
+00369  |  |       			"{INSERT} or {INS} 	INS" & @CRLF & _
+00370  |  |       			"{PGUP} 	PGUP" & @CRLF & _
+00371  |  |       			"{PGDN} 	PGDN" & @CRLF & _
+00372  |  |       			"{F1} - {F12} 	Function keys" & @CRLF & _
+00373  |  |       			"{TAB} 	TAB" & @CRLF & _
+00374  |  |       			"{PRINTSCREEN} 	PRINTSCR" & @CRLF & _
+00375  |  |       			"{LWIN} 	Left Windows key" & @CRLF & _
+00376  |  |       			"{RWIN} 	Right Windows key" & @CRLF & _
+00377  |  |       			"{NUMLOCK} 	NUMLOCK" & @CRLF & _
+00378  |  |       			"{CAPSLOCK} 	CAPSLOCK" & @CRLF & _
+00379  |  |       			"{SCROLLLOCK} 	SCROLLLOCK" & @CRLF & _
+00380  |  |       			"{BREAK} 	for Ctrl+Break processing" & @CRLF & _
+00381  |  |       			"{PAUSE} 	PAUSE" & @CRLF & _
+00382  |  |       			"{NUMPAD0} - {NUMPAD9} 	Numpad digits" & @CRLF & _
+00383  |  |       			"{NUMPADMULT} 	Numpad Multiply" & @CRLF & _
+00384  |  |       			"{NUMPADADD} 	Numpad Add" & @CRLF & _
+00385  |  |       			"{NUMPADSUB} 	Numpad Subtract" & @CRLF & _
+00386  |  |       			"{NUMPADDIV} 	Numpad Divide" & @CRLF & _
+00387  |  |       			"{NUMPADDOT} 	Numpad period" & @CRLF & _
+00388  |  |       			"{NUMPADENTER} 	Enter key on the numpad" & @CRLF & _
+00389  |  |       			"{APPSKEY} 	Windows App key" & @CRLF & _
+00390  |  |       			"{LALT} 	Left ALT key" & @CRLF & _
+00391  |  |       			"{RALT} 	Right ALT key" & @CRLF & _
+00392  |  |       			"{LCTRL} 	Left CTRL key" & @CRLF & _
+00393  |  |       			"{RCTRL} 	Right CTRL key" & @CRLF & _
+00394  |  |       			"{LSHIFT} 	Left Shift key" & @CRLF & _
+00395  |  |       			"{RSHIFT} 	Right Shift key" & @CRLF & _
+00396  |  |       			"{SLEEP} 	Computer SLEEP key" & @CRLF & _
+00397  |  |       			"{ALTDOWN} 	Holds the ALT key down until {ALTUP} is sent" & @CRLF & _
+00398  |  |       			"{SHIFTDOWN} 	Holds the SHIFT key down until {SHIFTUP} is sent" & @CRLF & _
+00399  |  |       			"{CTRLDOWN} 	Holds the CTRL key down until {CTRLUP} is sent" & @CRLF & _
+00400  |  |       			"{LWINDOWN} 	Holds the left Windows key down until {LWINUP} is sent" & @CRLF & _
+00401  |  |       			"{RWINDOWN} 	Holds the right Windows key down until {RWINUP} is sent" & @CRLF & _
+00402  |  |       			"{ASC nnnn} 	Send the ALT+nnnn key combination"
+00403  |    
+00404  |    	GUISetState(@SW_DISABLE, $fMAIN)
+00405  |  +-	#Region ### START Koda GUI section ### Form=
+00406  |  |    		$myTitle = "TCT Help"
+00407  |  |    		$FormHelp = GUICreate($myTitle, 610, 432, 203, 126)
+00408  |  |    		$Edit1 = GUICtrlCreateEdit("", 8, 8, 593, 385, $ES_READONLY + $WS_VSCROLL)
+00409  |  |    		GUICtrlSetData(-1, $myHelp)
+00410  |  |    		GUICtrlSetResizing(-1, $GUI_DOCKLEFT + $GUI_DOCKRIGHT + $GUI_DOCKTOP + $GUI_DOCKBOTTOM)
+00411  |  |    		$ButtonCloseHelp = GUICtrlCreateButton("Close", 520, 400, 75, 25)
+00412  |  |    		GUICtrlSetResizing(-1, $GUI_DOCKAUTO + $GUI_DOCKLEFT + $GUI_DOCKRIGHT + $GUI_DOCKTOP + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
+00413  |  |    		GUISetState(@SW_SHOW)
+00414  |  +-	#EndRegion ### END Koda GUI section ###
+00415  |    
+00416  |  +-	While 1
+00417  |  |    		$nMsg = GUIGetMsg()
+00418  |  |  +-		Switch $nMsg
+00419  |  |  |  +-			Case $GUI_EVENT_CLOSE
+00420  |  |  |  |    				GUIDelete($FormHelp)
+00421  |  v--|--|----				ExitLoop
+00422  |  |  |  +-			Case $ButtonCloseHelp
+00423  |  |  |  |    				GUIDelete($FormHelp)
+00424  |  v--|--|----				ExitLoop
+00425  |  v--|--|----
+00426  |  |  +-		EndSwitch
+00427  |  +-	WEnd
+00428  |    	GUISetState(@SW_ENABLE, $fMAIN)
+00429  |    	setMainFocus()
+00430  +-EndFunc   ;==>myHelp
+00431    
+00432  +-Func QuitApp()
+00433  |  +-	If $EnableESC <> 0 Then
+00434  |  |    		Exit 1
+00435  |  +-	EndIf
+00436  +-EndFunc   ;==>QuitApp
+00437    
+00438  +-Func setMainFocus()
+00439  |    	WinActive($product, "")
+00440  |    	WinActivate($product, "")
+00441  |    
+00442  +-EndFunc   ;==>setMainFocus
+00443    
+00444  +-Func showAbout()
+00445  |    	MsgBox(0, "About", "Toms Copy Tool (TCT)" & @CRLF & "Version:" & $ver & @CRLF & " by Tom Margrave" & @CRLF & " jumphopper@gmail.com" & @CRLF & @CRLF & "https://github.com/TomMargrave/TCT")
+00446  |    	ControlSetText("title", "text", 1, "new text")
+00447  |    	setMainFocus()
+00448  +-EndFunc   ;==>showAbout
+00449    
+00450  +-Func toggleCRLF()
+00451  |  +-	If $Suppress_CRLF == 1 Then
+00452  |  |    		GUICtrlSetState($mi_ConvertCRLF, $GUI_CHECKED)
+00453  |  |    		$Suppress_CRLF = 0
+00454  |  |    		GUICtrlSetState($mi_ConvertCRLF, $GUI_UNCHECKED)
+00455  |  +-	Else
+00456  |  |    		GUICtrlSetState($mi_ConvertCRLF, $GUI_UNCHECKED)
+00457  |  |    		$Suppress_CRLF = 1
+00458  |  |    		GUICtrlSetState($mi_ConvertCRLF, $GUI_CHECKED)
+00459  |  +-	EndIf
+00460  +-EndFunc   ;==>toggleCRLF
+00461    
+00462  +-Func toggleRaw()
+00463  |  +-	If $Raw_flag == 0 Then
+00464  |  |    		GUICtrlSetState($mi_Raw, $GUI_CHECKED)
+00465  |  |    		$Raw_flag = 1
+00466  |  |    		;$Suppress_CRLF = 0
+00467  |  |    		;GUICtrlSetState($mi_ConvertCRLF, $GUI_UNCHECKED)
+00468  |  +-	Else
+00469  |  |    		GUICtrlSetState($mi_Raw, $GUI_UNCHECKED)
+00470  |  |    		$Raw_flag = 0
+00471  |  |    		$Suppress_CRLF = 1
+00472  |  |    		GUICtrlSetState($mi_ConvertCRLF, $GUI_CHECKED)
+00473  |  +-	EndIf
+00474  |    
+00475  +-EndFunc   ;==>toggleRaw
+
+======================
+=== xref reports =====
+======================
+
+== User functions =================================================================================================
+                          Func
+Function name             Row     Referenced at Row(s)
+========================= ====== ==================================================================================
+AdjustSpeed               00203 
+GetAPP                    00254 
+INI_Load                  00291 
+INI_Write                 00301 
+QuitApp                   00432 
+_Main                     00095 
+disableControls           00212 
+doType                    00226 
+doWait                    00250 
+myHelp                    00307 
+setMainFocus              00438 
+showAbout                 00444 
+toggleCRLF                00450 
+toggleRaw                 00462 
+
+#### indicates that this specific variable only occurs one time in the script.
+---- indicates that this specific variable isn't declared with Dim/Local/Global/Const.
+
+== Variables ======================================================================================================
+Variable name             Dim   Used in Row(s)
+========================= ===== ===================================================================================
+#Au3Stripper_Parameters   ----- 00029
+#AutoIt3Wrapper_Compile_Both  ----- 00015
+#AutoIt3Wrapper_Compression  ----- 00014
+#AutoIt3Wrapper_Outfile   ----- 00012
+#AutoIt3Wrapper_Outfile_x64  ----- 00013
+#AutoIt3Wrapper_Res_Comment  ----- 00017
+#AutoIt3Wrapper_Res_CompanyName  ----- 00023
+#AutoIt3Wrapper_Res_Description  ----- 00018
+#AutoIt3Wrapper_Res_Fileversion  ----- 00019
+#AutoIt3Wrapper_Res_Fileversion_AutoIncrement  ----- 00020
+#AutoIt3Wrapper_Res_ProductName  ----- 00021
+#AutoIt3Wrapper_Res_ProductVersion  ----- 00022
+#AutoIt3Wrapper_Run_After  ----- 00024 00025
+#AutoIt3Wrapper_Run_Au3Stripper  ----- 00028
+#AutoIt3Wrapper_Run_Tidy  ----- 00026
+#AutoIt3Wrapper_UseX64    ----- 00016
+#EndRegion                ----- 00030 00053 00058 00087 00145 00414
+#Region                   ----- 00011 00032 00055 00060 00096 00405
+#Tidy_Parameters          ----- 00027
+#include                  ----- 00035 00038 00039 00041 00042 00043 00044 00045 00048 00051 00052
+$ButtonCloseHelp          ----- 00411 00422
+$Button_Clear             ----- 00081 00134 00170 00222
+$Button_ClearPaste        ----- 00081 00132 00166 00221
+$Button_Close             ----- 00081 00136 00173
+$Button_GO                ----- 00081 00130 00159 00220
+$DS_MODALFRAME            ----- 00101
+$ES_READONLY              ----- 00138 00408
+$ES_WANTRETURN            ----- 00127
+$Edit1                    ----- 00081 00127 00160 00168 00171 00219 00408
+$EnableESC                ----- 00065 00156 00174 00261 00283 00433
+$FormHelp                 ----- 00407 00420 00423
+$GUI_CHECKED              ----- 00108 00114 00452 00458 00464 00472
+$GUI_DISABLE              ----- 00118 00214
+$GUI_DOCKAUTO             ----- 00057 00129 00412
+$GUI_DOCKBOTTOM           ----- 00057 00129 00131 00133 00135 00137 00410
+$GUI_DOCKHEIGHT           ----- 00131 00133 00135 00137 00139 00141 00412
+$GUI_DOCKLEFT             ----- 00057 00129 00139 00410 00412
+$GUI_DOCKRIGHT            ----- 00057 00129 00131 00133 00135 00137 00139 00141 00410 00412
+$GUI_DOCKTOP              ----- 00057 00129 00139 00141 00410 00412
+$GUI_DOCKWIDTH            ----- 00131 00133 00135 00137 00141 00412
+$GUI_EVENT_CLOSE          ----- 00155 00419
+$GUI_SS_DEFAULT_GUI       ----- 00101
+$GUI_UNCHECKED            ----- 00110 00116 00454 00456 00469
+$MB_APPLMODAL             ----- 00251
+$Menu_File                ----- 00102 00103
+$Raw_flag                 ----- 00070 00107 00234 00246 00295 00303 00463 00465 00470
+$SEND_DEFAULT             ----- 00234
+$SelectApp                ----- 00140 00189
+$Send2App                 ----- 00082 00138 00275
+$Suppress_CRLF            ----- 00073 00113 00236 00296 00304 00451 00453 00457 00471
+$WS_SIZEBOX               ----- 00101
+$WS_THICKFRAME            ----- 00101
+$WS_VSCROLL               ----- 00408
+$aLastPos                 ----- 00262 00266 00277
+$aPos                     ----- 00204 00206 00262 00265 00266 00267 00268 00277
+$answer                   ----- 00206 00207
+$fMAIN                    ----- 00077 00101 00404 00428
+$fMAIN_Left               ----- 00078 00101
+$fMAIN_Top                ----- 00079 00101
+$hControl                 ----- 00262 00269 00270
+$hWin                     ----- 00083 00190 00228 00262 00270 00271 00275 00288
+$mi_About                 ----- 00124 00192
+$mi_AdjustSpeed           ----- 00105 00180
+$mi_ConvertCRLF           ----- 00084 00112 00118 00186 00452 00454 00456 00458 00472
+$mi_Exit                  ----- 00103 00177
+$mi_Help                  ----- 00122 00123 00124 00197
+$mi_Options               ----- 00104 00105 00106 00112 00120
+$mi_Raw                   ----- 00085 00106 00183 00464 00469
+$mi_Save                  ----- 00120 00194
+$myBool                   ----- 00212 00213
+$myHWND                   ----- 00074 00149 00204 00206 00251
+$myHelp                   ----- 00309 00409
+$myINI                    ----- 00072 00293 00294 00295 00296 00302 00303 00304
+$mySpeed                  ----- 00066 00206 00207 00208 00294 00302
+$myState                  ----- 00214 00216 00219 00220 00221 00222
+$myText                   ----- 00160 00163 00167 00168 00226 00237 00239 00243
+$myTitle                  ----- 00406 00407
+$myType                   ----- 00237 00239 00243 00246
+$nMsg                     ----- 00152 00153 00417 00418
+$nothing                  ----- 00157 00175 00178
+$product                  ----- 00061 00098 00101 00149 00439 00440
+$sLastStr                 ----- 00262 00272 00274
+$sStr                     ----- 00262 00271 00272 00273 00274
+$stPoint                  ----- 00262 00267 00268 00269
+$tagPOINT                 ----- 00262
+$title                    ----- 00228 00231
+$ver                      ----- 00062 00097 00098 00445
+0                         ----- 00065 00073 00147 00206 00236 00251 00261 00266 00267 00273 00282 00296 00433 00445 
+                                00453 00463 00470
+1                         ----- 00070 00107 00108 00110 00113 00114 00116 00128 00129 00131 00133 00135 00137 00139 
+                                00141 00151 00156 00174 00206 00213 00255 00262 00266 00267 00268 00283 00286 00295 
+                                00409 00410 00412 00416 00434 00446 00451 00457 00465 00471
+113                       ----- 00127
+126                       ----- 00407
+14                        ----- 00255
+15                        ----- 00279
+152                       ----- 00079 00130 00132 00134 00136
+176                       ----- 00134
+2                         ----- 00262 00268 00270
+20                        ----- 00066 00206 00273 00282
+200                       ----- 00255
+203                       ----- 00078 00407
+206                       ----- 00101
+25                        ----- 00130 00132 00134 00136 00138 00140 00411
+256                       ----- 00136
+30                        ----- 00140
+300                       ----- 00138 00255
+308                       ----- 00140
+329                       ----- 00127
+34                        ----- 00127
+352                       ----- 00101
+385                       ----- 00408
+40                        ----- 00206
+400                       ----- 00411
+432                       ----- 00407
+50                        ----- 00056 00294
+500                       ----- 00255
+520                       ----- 00411
+593                       ----- 00408
+610                       ----- 00407
+75                        ----- 00132 00134 00136 00411
+8                         ----- 00127 00130 00138 00140 00408
+81                        ----- 00130
+96                        ----- 00132
+@CR                       ----- 00243
+@CRLF                     ----- 00237 00239 00243 00251 00255 00309 00445
+@DesktopHeight            ----- 00273 00282
+@SW_DISABLE               ----- 00216 00404
+@SW_ENABLE                ----- 00428
+@SW_SHOW                  ----- 00143 00413
+@ScriptDir                ----- 00072
+@ScriptFullPath           ----- 00097
+Array                     ----- 00048
+AutoItConstants           ----- 00039
+ButtonConstants           ----- 00041
+#### Button_Clear         00081
+#### Button_ClearPaste    00081
+#### Button_Close         00081
+#### Button_GO            00081
+Case                      ----- 00155 00159 00166 00170 00173 00177 00180 00183 00186 00189 00192 00194 00197 00419 
+                                00422
+ComboConstants            ----- 00042
+#### Edit1                00081
+EditConstants             ----- 00043
+Else                      ----- 00109 00115 00215 00238 00241 00455 00468
+EnableESC                 00065 00156 00174
+EndFunc                   ----- 00201 00210 00224 00248 00252 00289 00299 00305 00430 00436 00442 00448 00460 00475
+EndIf                     ----- 00111 00117 00217 00240 00244 00276 00278 00297 00435 00459 00473
+EndSwitch                 ----- 00199 00426
+Exit                      ----- 00434
+ExitLoop                  ----- 00421 00424
+Func                      ----- 00095 00203 00212 00226 00250 00254 00291 00301 00307 00432 00438 00444 00450 00462
+GUIConstantsEx            ----- 00044
+Global                    ----- 00061 00062 00065 00066 00070 00072 00073 00074 00077 00078 00079 00081 00082 00083 
+                                00084 00085 00156 00174
+If                        ----- 00107 00113 00213 00234 00236 00266 00272 00293 00433 00451 00463
+Local                     ----- 00204 00206 00262
+Misc                      ----- 00052
+MsgBoxConstants           ----- 00038
+Not                       ----- 00264
+Or                        ----- 00266
+QuitApp                   ----- 00157 00178
+#### Raw_flag             00070
+Return                    ----- 00288
+#### Send2App             00082
+StructureConstants        ----- 00035
+#### Suppress_CRLF        00073
+Switch                    ----- 00153 00418
+Then                      ----- 00107 00113 00213 00234 00236 00266 00272 00293 00433 00451 00463
+WEnd                      ----- 00200 00280 00427
+While                     ----- 00151 00264 00416
+WinAPI                    ----- 00051
+WindowsConstants          ----- 00045
+#### aLastPos             00262
+aPos                      00204 00262
+#### answer               00206
+au3                       ----- 00035 00038 00039 00041 00042 00043 00044 00045 00048 00051 00052
+#### fMAIN                00077
+#### fMAIN_Left           00078
+#### fMAIN_Top            00079
+#### hControl             00262
+hWin                      00083 00262
+#### mi_ConvertCRLF       00084
+#### mi_Raw               00085
+#### myBool               00212
+#### myHWND               00074
+#### myINI                00072
+#### mySpeed              00066
+#### myText               00226
+#### product              00061
+#### sLastStr             00262
+#### sStr                 00262
+#### stPoint              00262
+#### ver                  00062
+== Sort Func Names Within #regions =====================================================================
+ --------------- Current sequence  ----------------------------------------------------------- 
+0000000011   #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+0000000030   #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+0000000032   #Region ; Includes
+0000000053   #EndRegion ; Includes
+0000000055   #Region ; Autoit options
+0000000058   #EndRegion ; Autoit options
+0000000060   #Region ;Global var
+0000000087   #EndRegion ;Global var
+0000000095   Func _Main()
+0000000201   EndFunc   ;==>_Main
+0000000203   Func AdjustSpeed()
+0000000210   EndFunc   ;==>AdjustSpeed
+0000000212   Func disableControls($myBool)
+0000000224   EndFunc   ;==>disableControls
+0000000226   Func doType($myText)
+0000000248   EndFunc   ;==>doType
+0000000250   Func doWait()
+0000000252   EndFunc   ;==>doWait
+0000000254   Func GetAPP()
+0000000289   EndFunc   ;==>GetAPP
+0000000291   Func INI_Load()
+0000000299   EndFunc   ;==>INI_Load
+0000000301   Func INI_Write()
+0000000305   EndFunc   ;==>INI_Write
+0000000307   Func myHelp()
+0000000430   EndFunc   ;==>myHelp
+0000000432   Func QuitApp()
+0000000436   EndFunc   ;==>QuitApp
+0000000438   Func setMainFocus()
+0000000442   EndFunc   ;==>setMainFocus
+0000000444   Func showAbout()
+0000000448   EndFunc   ;==>showAbout
+0000000450   Func toggleCRLF()
+0000000460   EndFunc   ;==>toggleCRLF
+0000000462   Func toggleRaw()
+0000000475   EndFunc   ;==>toggleRaw
+ --------------- New Sequence      ----------------------------------------------------------- 
+0000000011   #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+0000000030   #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+0000000032   #Region ; Includes
+0000000053   #EndRegion ; Includes
+0000000055   #Region ; Autoit options
+0000000058   #EndRegion ; Autoit options
+0000000060   #Region ;Global var
+0000000087   #EndRegion ;Global var
+0000000095   Func _Main()
+0000000096   	#Region ### START Koda GUI section ### Form=C:\Users\Tom Margrave\Desktop\autoit\Forms\TCT.kxf
+0000000145   	#EndRegion ### END Koda GUI section ###
+0000000201   EndFunc   ;==>_Main
+0000000203   Func AdjustSpeed()
+0000000210   EndFunc   ;==>AdjustSpeed
+0000000212   Func disableControls($myBool)
+0000000224   EndFunc   ;==>disableControls
+0000000226   Func doType($myText)
+0000000248   EndFunc   ;==>doType
+0000000250   Func doWait()
+0000000252   EndFunc   ;==>doWait
+0000000254   Func GetAPP()
+0000000289   EndFunc   ;==>GetAPP
+0000000291   Func INI_Load()
+0000000299   EndFunc   ;==>INI_Load
+0000000301   Func INI_Write()
+0000000305   EndFunc   ;==>INI_Write
+0000000307   Func myHelp()
+0000000405   	#Region ### START Koda GUI section ### Form=
+0000000414   	#EndRegion ### END Koda GUI section ###
+0000000430   EndFunc   ;==>myHelp
+0000000432   Func QuitApp()
+0000000436   EndFunc   ;==>QuitApp
+0000000438   Func setMainFocus()
+0000000442   EndFunc   ;==>setMainFocus
+0000000444   Func showAbout()
+0000000448   EndFunc   ;==>showAbout
+0000000450   Func toggleCRLF()
+0000000460   EndFunc   ;==>toggleCRLF
+0000000462   Func toggleRaw()
+0000000475   EndFunc   ;==>toggleRaw
+== END Sort Func Names Within #Region - #EndRegion =====================================================
+

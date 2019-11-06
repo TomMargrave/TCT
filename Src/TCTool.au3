@@ -1,13 +1,3 @@
-#cs ----------------------------------------------------------------------------
-
-    AutoIt Version: 3.3.14.5
-    Author:         Tom Margrave   Jumphopper@gmail.com
-
-    Script Function:  This is use to replace copy and paste when app will not let
-		user to paste into it.  For example RDP and VNC.
-
-#ce ----------------------------------------------------------------------------
-
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
 	#AutoIt3Wrapper_Outfile=..\Exe\TCT.exe
 	#AutoIt3Wrapper_Outfile_x64=..\Exe\TCT-64.exe
@@ -16,18 +6,30 @@
 	#AutoIt3Wrapper_UseX64=y
 	#AutoIt3Wrapper_Res_Comment=This is to replace copy and paste when app will not let user to paste into it.  For example RDP and VNC.
 	#AutoIt3Wrapper_Res_Description=Tom's Copy Tool
-	#AutoIt3Wrapper_Res_Fileversion=2.96.0.12
+	#AutoIt3Wrapper_Res_Fileversion=2.97.1.1
 	#AutoIt3Wrapper_Res_Fileversion_AutoIncrement=y
 	#AutoIt3Wrapper_Res_ProductName=Tom's Copy Tool
-	#AutoIt3Wrapper_Res_ProductVersion=2.96
+	#AutoIt3Wrapper_Res_ProductVersion=2.97
 	#AutoIt3Wrapper_Res_CompanyName=Tom Margrave
+	#AutoIt3Wrapper_Run_Stop_OnError=y
 	#AutoIt3Wrapper_Run_After=copy "%out%"       "C:\Users\Tom Margrave\Google Drive\TCT\Exe"
 	#AutoIt3Wrapper_Run_After=copy "%outx64%"  "C:\Users\Tom Margrave\Google Drive\TCT\Exe"
+	#AutoIt3Wrapper_Run_After=""C:\Program Files\7-Zip\7z.exe"  u "C:\Users\Tom Margrave\Documents\Github\TCT\Exe\TCT.zip" "C:\Users\Tom Margrave\Documents\Github\TCT\Exe\*.exe""
+	#AutoIt3Wrapper_Run_After=copy  "C:\Users\Tom Margrave\Documents\Github\TCT\Exe\TCT.zip"   "C:\Users\Tom Margrave\Google Drive\TCT\Exe"
 	#AutoIt3Wrapper_Run_Tidy=y
-	#Tidy_Parameters=/rel /reel /ri /sfc
+	#Tidy_Parameters=/sf /pr=1 /kv=10  /ri /reel
 	#AutoIt3Wrapper_Run_Au3Stripper=y
 	#Au3Stripper_Parameters=/TraceLog
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+#cs ----------------------------------------------------------------------------
+
+      AutoIt Version: 3.3.14.5
+      Author:         Tom Margrave   Jumphopper@gmail.com
+
+      Script Function:  This is use to replace copy and paste when app will not let
+      user to paste into it.  For example RDP and VNC.
+
+#ce ----------------------------------------------------------------------------
 
 #Region ; Includes
 
@@ -57,112 +59,158 @@
 	Opt("GUIResizeMode", $GUI_DOCKAUTO + $GUI_DOCKLEFT + $GUI_DOCKRIGHT + $GUI_DOCKTOP + $GUI_DOCKBOTTOM)
 #EndRegion ; Autoit options
 
-;turn off
-Global $EnableESC = 0
+#Region ;Global var
+	Global $product
+	Global $ver
+
+	;turn off
+	Global $EnableESC = 0
+	Global $mySpeed = 20
+
+	;  $SEND_DEFAULT (0) = Text contains special characters like + and ! to indicate SHIFT and ALT key-presses (default).
+	;  $SEND_RAW (1) = keys are sent raw.
+	Global $Raw_flag = 1
+
+	Global $myINI = @ScriptDir & "TCT.ini"
+	Global $Suppress_CRLF = 0 ; 0 unchecked  1 checked
+	Global $myHWND
+
+	;Gui
+	Global $fMAIN  ;Main form
+	Global $fMAIN_Left = 203
+	Global $fMAIN_Top = 152
+
+	Global $Edit1, $Button_GO, $Button_ClearPaste, $Button_Clear, $Button_Close
+	Global $Send2App  ;
+	Global $hWin ;handle for main form
+	Global $mi_ConvertCRLF
+	Global $mi_Raw
+
+#EndRegion ;Global var
 
 ;Set up hot key cancel
 HotKeySet("{ESC}", "QuitApp") ;Press ESC key to quit
 
-#Region ### START Koda GUI section ### Form=C:\Users\Tom Margrave\Desktop\autoit\Forms\TCT.kxf
+INI_Load()
+
+_Main()
+
+Func _Main()
 	$ver = FileGetVersion(@ScriptFullPath)
 	$product = "Tom's Copy Tool " & $ver
 
-	;Menu
-	$fMAIN = GUICreate($product, 352, 206, 203, 152, BitOR($GUI_SS_DEFAULT_GUI, $WS_SIZEBOX, $WS_THICKFRAME, $DS_MODALFRAME))
-	$Menu_File = GUICtrlCreateMenu("&File")
-	$mi_Exit = GUICtrlCreateMenuItem("&Exit", $Menu_File)
-	$MenuItem1 = GUICtrlCreateMenu("&Options")
-	$mi_AdjustSpeed = GUICtrlCreateMenuItem("Adjust &speed type", $MenuItem1)
-	$mi_Raw = GUICtrlCreateMenuItem("Raw Type", $MenuItem1)
-	GUICtrlSetState(-1, $GUI_CHECKED)
-	$miConvertCRLF = GUICtrlCreateMenuItem("Suppress CRLF", $MenuItem1)
-	GUICtrlSetState($miConvertCRLF, $GUI_DISABLE)
+	#Region ### START Koda GUI section ### Form=C:\Users\Tom Margrave\Desktop\autoit\Forms\TCT.kxf
 
-	$MenuItem4 = GUICtrlCreateMenu("&Help")
-	$mi_Help = GUICtrlCreateMenuItem("Help", $MenuItem4)
-	$mi_About = GUICtrlCreateMenuItem("About", $MenuItem4)
+		;Menu
+		$fMAIN = GUICreate($product, 352, 206, $fMAIN_Left, $fMAIN_Top, BitOR($GUI_SS_DEFAULT_GUI, $WS_SIZEBOX, $WS_THICKFRAME, $DS_MODALFRAME))
+		$Menu_File = GUICtrlCreateMenu("&File")
+		$mi_Exit = GUICtrlCreateMenuItem("&Exit", $Menu_File)
+		$mi_Options = GUICtrlCreateMenu("&Options")
+		$mi_AdjustSpeed = GUICtrlCreateMenuItem("Adjust &speed type", $mi_Options)
+		$mi_Raw = GUICtrlCreateMenuItem("Raw Type", $mi_Options)
+		If $Raw_flag == 1 Then
+			GUICtrlSetState(-1, $GUI_CHECKED)
 
-	;GUI
-	$Edit1 = GUICtrlCreateEdit("Text", 8, 34, 329, 113, $ES_WANTRETURN)
-	GUICtrlSetData(-1, "This tool will type whatever you put here.")
-	GUICtrlSetResizing(-1, $GUI_DOCKAUTO + $GUI_DOCKLEFT + $GUI_DOCKRIGHT + $GUI_DOCKTOP + $GUI_DOCKBOTTOM)
-	$Button1 = GUICtrlCreateButton("Go", 8, 152, 81, 25)
-	GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
-	$Button2 = GUICtrlCreateButton("Clear - Paste", 96, 152, 75, 25)
-	GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
-	$Button4 = GUICtrlCreateButton("Clear", 176, 152, 75, 25)
-	GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
-	$Button5 = GUICtrlCreateButton("Close", 256, 152, 75, 25)
-	GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
-	$Send2App = GUICtrlCreateInput("Select App      ----->>>>", 8, 8, 300, 25, $ES_READONLY)
-	GUICtrlSetResizing(-1, $GUI_DOCKLEFT + $GUI_DOCKRIGHT + $GUI_DOCKTOP + $GUI_DOCKHEIGHT)
-	$SelectApp = GUICtrlCreateButton("...", 308, 8, 30, 25)
-	GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKHEIGHT + $GUI_DOCKWIDTH + $GUI_DOCKTOP)
+		Else
+			GUICtrlSetState(-1, $GUI_UNCHECKED)
+		EndIf
+		$mi_ConvertCRLF = GUICtrlCreateMenuItem("Suppress CRLF", $mi_Options)
+		If $Suppress_CRLF == 1 Then
+			GUICtrlSetState(-1, $GUI_CHECKED)
+		Else
+			GUICtrlSetState(-1, $GUI_UNCHECKED)
+		EndIf
+		If $Raw_flag == 1 Then
+			GUICtrlSetState($mi_ConvertCRLF, $GUI_DISABLE)
+		EndIf
 
-	GUISetState(@SW_SHOW)
+		$mi_Save = GUICtrlCreateMenuItem("Save Settings", $mi_Options)
 
-#EndRegion ### END Koda GUI section ###
+		$mi_Help = GUICtrlCreateMenu("&Help")
+		$mi_Help = GUICtrlCreateMenuItem("Help", $mi_Help)
+		$mi_About = GUICtrlCreateMenuItem("About", $mi_Help)
 
-disableControls(0)
+		;GUI
+		$Edit1 = GUICtrlCreateEdit("Text", 8, 34, 329, 113, $ES_WANTRETURN)
+		GUICtrlSetData(-1, "This tool will type whatever you put here.")
+		GUICtrlSetResizing(-1, $GUI_DOCKAUTO + $GUI_DOCKLEFT + $GUI_DOCKRIGHT + $GUI_DOCKTOP + $GUI_DOCKBOTTOM)
+		$Button_GO = GUICtrlCreateButton("Go", 8, 152, 81, 25)
+		GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
+		$Button_ClearPaste = GUICtrlCreateButton("Clear - Paste", 96, 152, 75, 25)
+		GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
+		$Button_Clear = GUICtrlCreateButton("Clear", 176, 152, 75, 25)
+		GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
+		$Button_Close = GUICtrlCreateButton("Close", 256, 152, 75, 25)
+		GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKBOTTOM + $GUI_DOCKWIDTH + $GUI_DOCKHEIGHT)
+		$Send2App = GUICtrlCreateInput("Select App      ----->>>>", 8, 8, 300, 25, $ES_READONLY)
+		GUICtrlSetResizing(-1, $GUI_DOCKLEFT + $GUI_DOCKRIGHT + $GUI_DOCKTOP + $GUI_DOCKHEIGHT)
+		$SelectApp = GUICtrlCreateButton("...", 308, 8, 30, 25)
+		GUICtrlSetResizing(-1, $GUI_DOCKRIGHT + $GUI_DOCKHEIGHT + $GUI_DOCKWIDTH + $GUI_DOCKTOP)
 
-$myHWND = WinGetHandle($product, "")
-$Raw_flag = 0
+		GUISetState(@SW_SHOW)
 
-While 1
-	$nMsg = GUIGetMsg()
-	Switch $nMsg
+	#EndRegion ### END Koda GUI section ###
 
-		Case $GUI_EVENT_CLOSE
-			Global $EnableESC = 1
-			$nothing = QuitApp
+	disableControls(0)
 
-		Case $Button1  ;GO
-			$myText = GUICtrlRead($Edit1)
-			;GUISetState(@SW_HIDE)
-			;doWait()
-			doType($myText)
-			;GUISetState(@SW_SHOW)
+	$myHWND = WinGetHandle($product, "")
 
-		Case $Button2 ;Clear and Paste
-			$myText = ClipGet()
-			GUICtrlSetData($Edit1, $myText)
+	While 1
+		$nMsg = GUIGetMsg()
+		Switch $nMsg
 
-		Case $Button4   ;Clear
-			GUICtrlSetData($Edit1, "")
+			Case $GUI_EVENT_CLOSE
+				Global $EnableESC = 1
+				$nothing = QuitApp()
 
-		Case $Button5 ;Cancel
-			Global $EnableESC = 1
-			$nothing = QuitApp()
+			Case $Button_GO ;GO
+				$myText = GUICtrlRead($Edit1)
+				doType($myText)
 
-		Case $mi_Exit ; menu Exit
-			$nothing = QuitApp
+			Case $Button_ClearPaste ;Clear and Paste
+				$myText = ClipGet()
+				GUICtrlSetData($Edit1, $myText)
 
-		Case $mi_AdjustSpeed ; Addjust speed
-			;todo
-			AdjustSpeed()
+			Case $Button_Clear ;Clear
+				GUICtrlSetData($Edit1, "")
 
-		Case $mi_Raw     ; RAW Mode
-			ProcessRaw()
+			Case $Button_Close ;Cloase
+				Global $EnableESC = 1
+				$nothing = QuitApp()
 
-		Case $miConvertCRLF
-			ProcessCRLF()
+			Case $mi_Exit ; menu Exit
+				$nothing = QuitApp()
 
-		Case $SelectApp
-			$hWin = GetAPP()
+			Case $mi_AdjustSpeed ; Addjust speed
+				AdjustSpeed()
 
-		Case $mi_About ;
-			showAbout()
+			Case $mi_Raw ; RAW Mode
+				toggleRaw()
 
-		Case $mi_Help
-			myHelp()
-	EndSwitch
-WEnd
+			Case $mi_ConvertCRLF
+				toggleCRLF()
+
+			Case $SelectApp
+				$hWin = GetAPP()
+
+			Case $mi_About ;
+				showAbout()
+
+			Case $mi_Save
+				INI_Write()
+
+			Case $mi_Help
+				myHelp()
+		EndSwitch
+	WEnd
+EndFunc   ;==>_Main
 
 Func AdjustSpeed()
-	Local $sAnswer = InputBox("Question", "What speed do you want to use?", 5, "", -1, -1, 0, 0)
-	Opt("SendKeyDelay", $sAnswer)
+	Local $aPos = WinGetPos($myHWND)
+	Local $answer = InputBox("Question", "What speed do you want to use?", $mySpeed, "", 0, 0, $aPos[0] + 40, $aPos[1] + 20, 0, $myHWND)
+	$mySpeed = $answer
+	Opt("SendKeyDelay", $mySpeed)
 	setMainFocus()
-
 EndFunc   ;==>AdjustSpeed
 
 Func disableControls($myBool)
@@ -173,9 +221,9 @@ Func disableControls($myBool)
 	EndIf
 
 	GUICtrlSetState($Edit1, $myState)
-	GUICtrlSetState($Button1, $myState)
-	GUICtrlSetState($Button2, $myState)
-	GUICtrlSetState($Button4, $myState)
+	GUICtrlSetState($Button_GO, $myState)
+	GUICtrlSetState($Button_ClearPaste, $myState)
+	GUICtrlSetState($Button_Clear, $myState)
 	setMainFocus()
 EndFunc   ;==>disableControls
 
@@ -186,14 +234,15 @@ Func doType($myText)
 	;set send to active window
 	SendKeepActive($title)
 	; send keys
-	If BitAND(GUICtrlRead($mi_Raw), $GUI_UNCHECKED) Then
-		$Raw_flag = $SEND_DEFAULT
-		$myType = StringReplace($myText, @CRLF, "{ENTER}")
+	If $Raw_flag == $SEND_DEFAULT Then
+		If $Suppress_CRLF == 0 Then
+			$myType = StringReplace($myText, @CRLF, "{ENTER}")
+		Else
+			$myType = StringReplace($myText, @CRLF, "")
+		EndIf
 	Else
-		$Raw_flag = $SEND_RAW
 		$myType = StringReplace($myText, @CRLF, @CR)
 	EndIf
-	;$myText = StringStripWS($myText, 3)
 	Send($myType, $Raw_flag)
 	setMainFocus()
 EndFunc   ;==>doType
@@ -238,6 +287,22 @@ Func GetAPP()
 	setMainFocus()
 	Return $hWin
 EndFunc   ;==>GetAPP
+
+Func INI_Load()
+	;Detect if ini exist
+	If FileExists($myINI) Then
+		$mySpeed = IniRead($myINI, "Features", "Speed", 50)
+		$Raw_flag = IniRead($myINI, "Features", "RAW", 1)
+		$Suppress_CRLF = IniRead($myINI, "Features", "CRLF", 0)
+	EndIf
+
+EndFunc   ;==>INI_Load
+
+Func INI_Write()
+	IniWrite($myINI, "Features", "Speed", $mySpeed)
+	IniWrite($myINI, "Features", "RAW", $Raw_flag)
+	IniWrite($myINI, "Features", "CRLF", $Suppress_CRLF)
+EndFunc   ;==>INI_Write
 
 Func myHelp()
 
@@ -364,37 +429,6 @@ Func myHelp()
 	setMainFocus()
 EndFunc   ;==>myHelp
 
-Func ProcessCRLF()
-	$myResults = GUICtrlRead($mi_Raw)
-
-	If BitAND(GUICtrlRead($miConvertCRLF), $GUI_UNCHECKED) Then
-		GUICtrlSetState($miConvertCRLF, $GUI_CHECKED)
-		$Suppress_CRLF = 0
-		GUICtrlSetState($miConvertCRLF, $GUI_UNCHECKED)
-	Else
-		GUICtrlSetState($miConvertCRLF, $GUI_UNCHECKED)
-		$Suppress_CRLF = 1
-		GUICtrlSetState($miConvertCRLF, $GUI_CHECKED)
-	EndIf
-EndFunc   ;==>ProcessCRLF
-
-Func ProcessRaw()
-	$myResults = GUICtrlRead($mi_Raw)
-
-	If BitAND(GUICtrlRead($mi_Raw), $GUI_UNCHECKED) Then
-		GUICtrlSetState($mi_Raw, $GUI_CHECKED)
-		$Raw_flag = 1
-		$Suppress_CRLF = 0
-		GUICtrlSetState($miConvertCRLF, $GUI_UNCHECKED)
-	Else
-		GUICtrlSetState($mi_Raw, $GUI_UNCHECKED)
-		$Raw_flag = 0
-		$Suppress_CRLF = 1
-		GUICtrlSetState($miConvertCRLF, $GUI_CHECKED)
-	EndIf
-
-EndFunc   ;==>ProcessRaw
-
 Func QuitApp()
 	If $EnableESC <> 0 Then
 		Exit 1
@@ -404,11 +438,41 @@ EndFunc   ;==>QuitApp
 Func setMainFocus()
 	WinActive($product, "")
 	WinActivate($product, "")
-
 EndFunc   ;==>setMainFocus
 
 Func showAbout()
-	MsgBox(1, "About", "Toms Copy Tool (TCT)" & @CRLF & "Version:" & $ver & @CRLF & " by Tom Margrave" & @CRLF & " jumphopper@gmail.com")
+	MsgBox(0, "About", "Toms Copy Tool (TCT)" & @CRLF & "Version:" & $ver & @CRLF & " by Tom Margrave" & @CRLF & " jumphopper@gmail.com" & @CRLF & @CRLF & "https://github.com/TomMargrave/TCT")
 	ControlSetText("title", "text", 1, "new text")
 	setMainFocus()
 EndFunc   ;==>showAbout
+
+Func toggleCRLF()
+	If $Suppress_CRLF == 1 Then
+		GUICtrlSetState($mi_ConvertCRLF, $GUI_CHECKED)
+		$Suppress_CRLF = 0
+		GUICtrlSetState($mi_ConvertCRLF, $GUI_UNCHECKED)
+	Else
+		GUICtrlSetState($mi_ConvertCRLF, $GUI_UNCHECKED)
+		$Suppress_CRLF = 1
+		GUICtrlSetState($mi_ConvertCRLF, $GUI_CHECKED)
+	EndIf
+EndFunc   ;==>toggleCRLF
+
+Func toggleRaw()
+	If $Raw_flag == 1 Then
+		;Uncheck Raw
+		GUICtrlSetState($mi_Raw, $GUI_UNCHECKED)
+		$Raw_flag = 0
+		GUICtrlSetState($mi_ConvertCRLF, $GUI_ENABLE)
+	Else
+		;Check Raw
+		GUICtrlSetState($mi_Raw, $GUI_CHECKED)
+		$Raw_flag = 1
+		GUICtrlSetState($mi_ConvertCRLF, $GUI_DISABLE)
+	EndIf
+
+	;Uncheck Suppress CRLF
+	$Suppress_CRLF = 0
+	GUICtrlSetState($mi_ConvertCRLF, $GUI_UNCHECKED)
+
+EndFunc   ;==>toggleRaw
