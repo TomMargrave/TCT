@@ -1,2 +1,3 @@
 src/TCTool_stripped.au3
-src/BackUp/*.*
+src/BackUp/.
+src/BackUp/
